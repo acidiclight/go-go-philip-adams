@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using SpriteFontPlus;
 
 namespace GoGoPhilipAdamsRedux
 {
@@ -14,7 +16,7 @@ namespace GoGoPhilipAdamsRedux
         private float _amplitude = 0.05f;
         private float _speed = 0.075f;
         private float _centerY;
-
+        
         public Vector2 Location { get; set; } = new Vector2(1f, 0.5f);
 
         public Rectangle CalculateBounds(GraphicsDevice graphics)

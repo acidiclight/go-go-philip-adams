@@ -7,6 +7,7 @@
 
   <ItemGroup>
     <PackageReference Include="MonoGame.Framework.DesktopGL.Core" Version="3.8.0.2" />
+    <PackageReference Include="SpriteFontPlus.MonoGame" Version="0.7.0.22" />
   </ItemGroup>
 
   <ItemGroup>
@@ -41,6 +42,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="Backgrounds\waves.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Contemporary-Regular.ttf">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="Sprites\enemy.png">

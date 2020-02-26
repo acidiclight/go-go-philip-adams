@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using Microsoft.Xna.Framework.Input;
+using SpriteFontPlus;
 
 namespace GoGoPhilipAdamsRedux
 {
@@ -30,13 +31,16 @@ namespace GoGoPhilipAdamsRedux
         private const int MAX_WAVE_ENEMIES = 7;
         private const double SECS_BETWEEN_WAVE = 12;
         private const double SECS_BETWEEN_ENEMY = 1;
-
+        private const int SCORE_VICTOR_KILLED = 100;
+        private const int SCORE_LOSS_VICTOR_ESCAPE = 100;
         private const float MIN_WAVE_AMPLITUDE_EVER = 0.0075f;
         private const float MAX_WAVE_AMPLITUDE_EVER = 0.125f;
-
+        private int _score = 0;
         private const double MIN_WAVE_FREQ_EVER = 0.5;
         private const double MAX_WAVE_FREQ_EVER = 10;
-
+        private SpriteFont _uiSmall = null;
+        private SpriteFont _uiMedium = null;
+        private SpriteFont _uiLarge = null;
         private List<Bullet> _hitlist = new List<Bullet>();
         private KeyboardState _lastKeyboard;
         private double _waveTimeLeft = 0;
@@ -48,7 +52,7 @@ namespace GoGoPhilipAdamsRedux
         private float _waveFrequency;
         private Texture2D _bulletTexture = null;
         private List<Bullet> _bullets = new List<Bullet>();
-        private const float BULLET_SPEED_PLAYER = 0.1f;
+        private const float BULLET_SPEED_PLAYER = 0.3f;
         private const float BULLET_SPEED_ENEMY = 0.05f;
         private double _nextBulletTime = TIME_BETWEEN_ENEMY_BULLETS;
         private const double TIME_BETWEEN_ENEMY_BULLETS = 4;
@@ -68,8 +72,36 @@ namespace GoGoPhilipAdamsRedux
             IsFixedTimeStep = true;
         }
 
+        private void AddScore(int score)
+        {
+            _score += Math.Abs(score);
+        }
+
+        private void RemoveScore(int score)
+        {
+            _score = Math.Max(0, _score - Math.Abs(score));
+        }
+
+        private SpriteFont LoadFont(string filePath, float fontSize)
+        {
+            using (var stream = File.OpenRead(filePath))
+            {
+                var bytes = new byte[stream.Length];
+                stream.Read(bytes, 0, bytes.Length);
+
+                var bake = TtfFontBaker.Bake(bytes, fontSize, 2048, 2048, new[] { CharacterRange.BasicLatin });
+
+                return bake.CreateSpriteFont(GraphicsDevice);
+            }
+        }
+
+
         protected override void LoadContent()
         {
+            _uiSmall = LoadFont("Contemporary-Regular.ttf", 12);
+            _uiMedium = LoadFont("Contemporary-Regular.ttf", 18);
+            _uiLarge = LoadFont("Contemporary-Regular.ttf", 24);
+
             _batch = new SpriteBatch(GraphicsDevice);
 
             _backgrounds = new List<Texture2D>();
@@ -222,6 +254,7 @@ namespace GoGoPhilipAdamsRedux
             if(removed > 0)
             {
                 Console.WriteLine("[cleanup] removed {0} victor entities", removed);
+                RemoveScore(SCORE_LOSS_VICTOR_ESCAPE * removed);
             }
 
             foreach (var bullet in _bullets)
@@ -236,7 +269,7 @@ namespace GoGoPhilipAdamsRedux
 
                     if(hitVictors > 0)
                     {
-                        // TODO: score.
+                        AddScore(SCORE_VICTOR_KILLED * hitVictors);
                         _hitlist.Add(bullet);
                     }
                 }
@@ -288,6 +321,12 @@ namespace GoGoPhilipAdamsRedux
 
             foreach (var bullet in _bullets) bullet.Draw(gameTime, _batch);
             foreach (var victor in _victors) victor.Draw(gameTime, _batch);
+
+            var scoreText = $"SCORE: {_score}";
+
+            _batch.DrawString(_uiMedium, scoreText, new Vector2(27, 27), Color.Black);
+            _batch.DrawString(_uiMedium, scoreText, new Vector2(25, 25), Color.White);
+
 
             _batch.End();
 
