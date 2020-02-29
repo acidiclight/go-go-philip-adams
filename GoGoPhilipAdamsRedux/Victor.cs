@@ -30,8 +30,9 @@ namespace GoGoPhilipAdamsRedux
             return new Rectangle((int)x - (_size / 2), (int)y - (_size / 2), _size, _size);
         }
 
-        public Victor(Texture2D texture, int size, float y, float amp, float freq)
+        public Victor(Texture2D texture, int size, float y, float amp, float freq, float speed)
         {
+            _speed = speed;
             _texture = texture;
             _size = size;
 

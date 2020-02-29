@@ -59,8 +59,22 @@ namespace GoGoPhilipAdamsRedux
         private List<Bullet> _bullets = new List<Bullet>();
         private const float BULLET_SPEED_PLAYER = 0.3f;
         private const float BULLET_SPEED_ENEMY = 0.05f;
+        private const float STARTING_WAVE_SPEED = 0.075f;
         private double _nextBulletTime = TIME_BETWEEN_ENEMY_BULLETS;
         private const double TIME_BETWEEN_ENEMY_BULLETS = 4;
+        private float _waveSpeed;
+        private const float WAVE_SPEED_INCREASE = 0.015f;
+        private const float MAX_WAVE_SPEED = 0.25f;
+
+#if DEBUG
+        private string GetDebugText()
+        {
+            return $@"Victors on-screen: {_victors.Count}
+Bullets on-screen: {_bullets.Count}
+Player pos: {_penguinX}, {_penguinY}
+Wave speed: {_waveSpeed}";
+        }
+#endif
 
         public Rectangle Bounds => new Rectangle(
             0,
@@ -158,6 +172,8 @@ namespace GoGoPhilipAdamsRedux
                 _currentBG = _backgrounds[_rnd.Next(0, _backgrounds.Count)];
             }
 
+            _waveSpeed = STARTING_WAVE_SPEED;
+
             base.LoadContent();
         }
 
@@ -173,12 +189,13 @@ namespace GoGoPhilipAdamsRedux
                 {
                     if(_enemiesToSpawn > 0)
                     {
-                        _victors.Add(new Victor(_enemy, _penguinSize, _enemyPos, _waveAmplitude, _waveFrequency));
+                        _victors.Add(new Victor(_enemy, _penguinSize, _enemyPos, _waveAmplitude, _waveFrequency, _waveSpeed));
                         _enemiesToSpawn--;
                         _nextEnemyTime = SECS_BETWEEN_ENEMY;
                     }
                     else
                     {
+                        _waveSpeed = MathHelper.Clamp(_waveSpeed + WAVE_SPEED_INCREASE, STARTING_WAVE_SPEED, MAX_WAVE_SPEED);
                         _spawning = false;
                         _waveTimeLeft = SECS_BETWEEN_WAVE;
                     }
@@ -390,6 +407,15 @@ namespace GoGoPhilipAdamsRedux
             _batch.DrawString(_uiMedium, livesLeftText, livesPos + new Vector2(2, 2), Color.Black);
             _batch.DrawString(_uiMedium, livesLeftText, livesPos, Color.White);
 
+#if DEBUG
+            var debugText = GetDebugText();
+            var debugMeasure = _uiSmall.MeasureString(debugText);
+            var debugPos = new Vector2(15, (Bounds.Height - debugMeasure.Y) - 15);
+
+            _batch.DrawString(_uiSmall, debugText, debugPos + new Vector2(2, 2), Color.Black);
+            _batch.DrawString(_uiSmall, debugText, debugPos, Color.White);
+
+#endif
 
             _batch.End();
 
