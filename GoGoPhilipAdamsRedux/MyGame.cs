@@ -27,7 +27,12 @@ namespace GoGoPhilipAdamsRedux
         private Rectangle PenguinBounds;
         private Texture2D _enemy = null;
         private List<Victor> _victors = new List<Victor>();
-
+        private const int STARTING_LIVES_LEFT = 3;
+        private const double INVINCIBILITY_TIME_AFTER_DEATH = 5;
+        private int _livesLeft = 0;
+        private double _invincibilityTime = 0;
+        private bool _invincibleRenderPlayer = false;
+        private double _invicibleFlashTime = 0;
         private const int MAX_WAVE_ENEMIES = 7;
         private const double SECS_BETWEEN_WAVE = 12;
         private const double SECS_BETWEEN_ENEMY = 1;
@@ -95,6 +100,22 @@ namespace GoGoPhilipAdamsRedux
             }
         }
 
+        private void Die()
+        {
+            _livesLeft--;
+            if(_livesLeft <= 0)
+            {
+                Exit();
+            }
+            else
+            {
+                _penguinX = 0.15f;
+                _penguinY = 0.5f;
+                _invincibilityTime = INVINCIBILITY_TIME_AFTER_DEATH;
+                _invincibleRenderPlayer = false;
+                _invicibleFlashTime = 0;
+            }
+        }
 
         protected override void LoadContent()
         {
@@ -103,6 +124,9 @@ namespace GoGoPhilipAdamsRedux
             _uiLarge = LoadFont("Contemporary-Regular.ttf", 24);
 
             _batch = new SpriteBatch(GraphicsDevice);
+
+            _livesLeft = STARTING_LIVES_LEFT;
+            _invincibilityTime = 0;
 
             _backgrounds = new List<Texture2D>();
 
@@ -247,9 +271,21 @@ namespace GoGoPhilipAdamsRedux
 
             PenguinBounds = new Rectangle((int)playerXInterpolated - (_penguinSize/2), (int)playerYInterpolated - (_penguinSize/2), _penguinSize, _penguinSize);
 
-            foreach (var victor in _victors) victor.Update(gameTime);
+            foreach (var victor in _victors)
+            {
+                victor.Update(gameTime);
 
-            var removed = _victors.RemoveAll(x => x.Location.X < 0);
+                if (_invincibilityTime <= 0)
+                {
+                    var vicBounds = victor.CalculateBounds(GraphicsDevice);
+                    if (vicBounds.Intersects(PenguinBounds))
+                    {
+                        Die();
+                    }
+                }
+            }
+
+            var removed = _victors.RemoveAll(x => x.Location.X < 0 || (_invincibilityTime <= 0 && x.CalculateBounds(GraphicsDevice).Intersects(PenguinBounds)));
 
             if(removed > 0)
             {
@@ -276,8 +312,9 @@ namespace GoGoPhilipAdamsRedux
                 else
                 {
                     // TODO: player defeat.
-                    if(PenguinBounds.Intersects(bounds))
+                    if(PenguinBounds.Intersects(bounds) && _invincibilityTime <= 0)
                     {
+                        Die();
                         _hitlist.Add(bullet);
                     }
                 }
@@ -298,6 +335,21 @@ namespace GoGoPhilipAdamsRedux
 
             _lastKeyboard = keyboard;
 
+            if(_invincibilityTime > 0)
+            {
+                _invincibilityTime -= gameTime.ElapsedGameTime.TotalSeconds;
+
+                if(_invicibleFlashTime >= 1)
+                {
+                    _invicibleFlashTime = 0;
+                    _invincibleRenderPlayer = !_invincibleRenderPlayer;
+                }
+                else
+                {
+                    _invicibleFlashTime += (gameTime.ElapsedGameTime.TotalSeconds * 16);
+                }
+            }
+
             base.Update(gameTime);
         }
 
@@ -317,7 +369,11 @@ namespace GoGoPhilipAdamsRedux
                 _batch.Draw(_newBG, Bounds, Color.Gray * _bgFade);
             }
 
-            _batch.Draw(_penguin, PenguinBounds, Color.White);
+            bool renderPlayer = (_invincibilityTime > 0) ? _invincibleRenderPlayer : true;
+            if (renderPlayer)
+            {
+                _batch.Draw(_penguin, PenguinBounds, Color.White);
+            }
 
             foreach (var bullet in _bullets) bullet.Draw(gameTime, _batch);
             foreach (var victor in _victors) victor.Draw(gameTime, _batch);
@@ -326,6 +382,13 @@ namespace GoGoPhilipAdamsRedux
 
             _batch.DrawString(_uiMedium, scoreText, new Vector2(27, 27), Color.Black);
             _batch.DrawString(_uiMedium, scoreText, new Vector2(25, 25), Color.White);
+
+            var livesLeftText = $"LIVES: {_livesLeft}";
+            var livesMeasure = _uiMedium.MeasureString(livesLeftText);
+            var livesPos = new Vector2((Bounds.Width - livesMeasure.X) - 25, 25);
+
+            _batch.DrawString(_uiMedium, livesLeftText, livesPos + new Vector2(2, 2), Color.Black);
+            _batch.DrawString(_uiMedium, livesLeftText, livesPos, Color.White);
 
 
             _batch.End();
