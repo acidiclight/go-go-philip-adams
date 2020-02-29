@@ -7,6 +7,8 @@ using System.IO;
 using Microsoft.Xna.Framework.Input;
 using SpriteFontPlus;
 
+using MultiColorText;
+
 namespace GoGoPhilipAdamsRedux
 {
     public class MyGame : Game
@@ -65,6 +67,7 @@ namespace GoGoPhilipAdamsRedux
         private float _waveSpeed;
         private const float WAVE_SPEED_INCREASE = 0.015f;
         private const float MAX_WAVE_SPEED = 0.25f;
+        private GameState _state = GameState.Intro;
 
 #if DEBUG
         private string GetDebugText()
@@ -119,7 +122,7 @@ Wave speed: {_waveSpeed}";
             _livesLeft--;
             if(_livesLeft <= 0)
             {
-                Exit();
+                _state = GameState.GameOver;
             }
             else
             {
@@ -131,16 +134,30 @@ Wave speed: {_waveSpeed}";
             }
         }
 
-        protected override void LoadContent()
+        private void StartGame()
         {
-            _uiSmall = LoadFont("Contemporary-Regular.ttf", 12);
-            _uiMedium = LoadFont("Contemporary-Regular.ttf", 18);
-            _uiLarge = LoadFont("Contemporary-Regular.ttf", 24);
-
-            _batch = new SpriteBatch(GraphicsDevice);
+            _victors.Clear();
+            _bullets.Clear();
 
             _livesLeft = STARTING_LIVES_LEFT;
+            _score = 0;
+            _waveSpeed = STARTING_WAVE_SPEED;
             _invincibilityTime = 0;
+
+            _enemiesToSpawn = 0;
+            _nextBulletTime = 0;
+            _waveTimeLeft = 0;
+
+            _state = GameState.InGame;
+        }
+
+        protected override void LoadContent()
+        {
+            _uiSmall = LoadFont("Contemporary-Regular.ttf", 16);
+            _uiMedium = LoadFont("Contemporary-Regular.ttf", 24);
+            _uiLarge = LoadFont("Contemporary-Regular.ttf", 33);
+
+            _batch = new SpriteBatch(GraphicsDevice);
 
             _backgrounds = new List<Texture2D>();
 
@@ -172,22 +189,20 @@ Wave speed: {_waveSpeed}";
                 _currentBG = _backgrounds[_rnd.Next(0, _backgrounds.Count)];
             }
 
-            _waveSpeed = STARTING_WAVE_SPEED;
-
             base.LoadContent();
         }
 
-        protected override void Update(GameTime gameTime)
+        private void UpdateWave(GameTime gameTime)
         {
             if (_spawning)
             {
-                if(_nextEnemyTime >= 0)
+                if (_nextEnemyTime >= 0)
                 {
                     _nextEnemyTime -= gameTime.ElapsedGameTime.TotalSeconds;
                 }
                 else
                 {
-                    if(_enemiesToSpawn > 0)
+                    if (_enemiesToSpawn > 0)
                     {
                         _victors.Add(new Victor(_enemy, _penguinSize, _enemyPos, _waveAmplitude, _waveFrequency, _waveSpeed));
                         _enemiesToSpawn--;
@@ -221,11 +236,14 @@ Wave speed: {_waveSpeed}";
                     _waveFrequency = (float)((_rnd.NextDouble() * freqRange) + MIN_WAVE_FREQ_EVER);
                 }
             }
+        }
 
-            if(_newBG == null)
+        private void CycleBackground(GameTime gameTime)
+        {
+            if (_newBG == null)
             {
                 _bgTime += gameTime.ElapsedGameTime.TotalSeconds;
-                if(_bgTime >= 10)
+                if (_bgTime >= 10)
                 {
                     _bgTime = 0;
                     _newBG = _backgrounds[_rnd.Next(0, _backgrounds.Count)];
@@ -235,32 +253,37 @@ Wave speed: {_waveSpeed}";
             else
             {
                 _bgFade = MathHelper.Clamp(_bgFade + ((float)gameTime.ElapsedGameTime.TotalSeconds * 4), 0, 1);
-                if(_bgFade >= 1)
+                if (_bgFade >= 1)
                 {
                     _currentBG = _newBG;
                     _newBG = null;
                     _bgTime = 0;
                 }
             }
+        }
 
-            if(_nextBulletTime > 0)
+        private void SpawnEnemyBullets(GameTime gameTime)
+        {
+            if (_nextBulletTime > 0)
             {
                 _nextBulletTime -= gameTime.ElapsedGameTime.TotalSeconds;
             }
             else
             {
                 _nextBulletTime = TIME_BETWEEN_ENEMY_BULLETS;
-                if(_victors.Count > 0)
+                if (_victors.Count > 0)
                 {
                     var vicr123 = _victors[_rnd.Next(0, _victors.Count)];
                     _bullets.Add(new Bullet(_bulletTexture, false, BULLET_SPEED_ENEMY, vicr123.Location.X, vicr123.Location.Y));
                 }
             }
 
+        }
+
+        private void UpdatePenguin(GameTime gameTime, KeyboardState keyboard)
+        {
             double playerXAxis = 0;
             double playerYAxis = 0;
-
-            var keyboard = Keyboard.GetState();
 
             if (keyboard.IsKeyDown(Keys.Left))
             {
@@ -275,7 +298,7 @@ Wave speed: {_waveSpeed}";
             {
                 playerYAxis = -1;
             }
-            else if(keyboard.IsKeyDown(Keys.Down))
+            else if (keyboard.IsKeyDown(Keys.Down))
             {
                 playerYAxis = 1;
             }
@@ -286,8 +309,12 @@ Wave speed: {_waveSpeed}";
             var playerXInterpolated = MathHelper.Lerp(-_penguinSize, Bounds.Width + _penguinSize, _penguinX);
             var playerYInterpolated = MathHelper.Lerp(-_penguinSize, Bounds.Height + _penguinSize, _penguinY);
 
-            PenguinBounds = new Rectangle((int)playerXInterpolated - (_penguinSize/2), (int)playerYInterpolated - (_penguinSize/2), _penguinSize, _penguinSize);
+            PenguinBounds = new Rectangle((int)playerXInterpolated - (_penguinSize / 2), (int)playerYInterpolated - (_penguinSize / 2), _penguinSize, _penguinSize);
 
+        }
+
+        private void UpdateVictorTrans(GameTime gameTime)
+        {
             foreach (var victor in _victors)
             {
                 victor.Update(gameTime);
@@ -301,26 +328,32 @@ Wave speed: {_waveSpeed}";
                     }
                 }
             }
+        }
 
+        private void RemoveOffscreenVictors(GameTime gameTime)
+        {
             var removed = _victors.RemoveAll(x => x.Location.X < 0 || (_invincibilityTime <= 0 && x.CalculateBounds(GraphicsDevice).Intersects(PenguinBounds)));
 
-            if(removed > 0)
+            if (removed > 0)
             {
-                Console.WriteLine("[cleanup] removed {0} victor entities", removed);
                 RemoveScore(SCORE_LOSS_VICTOR_ESCAPE * removed);
             }
 
+        }
+
+        private void UpdateBullets(GameTime gameTime)
+        {
             foreach (var bullet in _bullets)
             {
                 bullet.Update(gameTime);
 
                 var bounds = bullet.CalculateBounds(GraphicsDevice);
-                
-                if(bullet.IsPlayer)
+
+                if (bullet.IsPlayer)
                 {
                     var hitVictors = _victors.RemoveAll(x => x.CalculateBounds(GraphicsDevice).Intersects(bounds));
 
-                    if(hitVictors > 0)
+                    if (hitVictors > 0)
                     {
                         AddScore(SCORE_VICTOR_KILLED * hitVictors);
                         _hitlist.Add(bullet);
@@ -329,7 +362,7 @@ Wave speed: {_waveSpeed}";
                 else
                 {
                     // TODO: player defeat.
-                    if(PenguinBounds.Intersects(bounds) && _invincibilityTime <= 0)
+                    if (PenguinBounds.Intersects(bounds) && _invincibilityTime <= 0)
                     {
                         Die();
                         _hitlist.Add(bullet);
@@ -340,23 +373,24 @@ Wave speed: {_waveSpeed}";
             var bulletsCulled = _bullets.RemoveAll(x => x.Location.X <= 0 || x.Location.X >= 1 || _hitlist.Contains(x));
             _hitlist.Clear();
 
-            if(bulletsCulled > 0)
-            {
-                Console.WriteLine("[cleanup] Culled {0} bullets.  Unlike you, I just dodged a bullet.", bulletsCulled);
-            }
+        }
 
-            if(keyboard.IsKeyDown(Keys.Space) && !_lastKeyboard.IsKeyDown(Keys.Space))
+        private void SpawnPlayerBullets(GameTime gameTime, KeyboardState keyboard)
+        {
+            if (keyboard.IsKeyDown(Keys.Space) && !_lastKeyboard.IsKeyDown(Keys.Space))
             {
                 _bullets.Add(new Bullet(_bulletTexture, true, BULLET_SPEED_PLAYER, _penguinX, _penguinY));
             }
 
-            _lastKeyboard = keyboard;
+        }
 
-            if(_invincibilityTime > 0)
+        private void UpdateInvincibilityState(GameTime gameTime)
+        {
+            if (_invincibilityTime > 0)
             {
                 _invincibilityTime -= gameTime.ElapsedGameTime.TotalSeconds;
 
-                if(_invicibleFlashTime >= 1)
+                if (_invicibleFlashTime >= 1)
                 {
                     _invicibleFlashTime = 0;
                     _invincibleRenderPlayer = !_invincibleRenderPlayer;
@@ -367,34 +401,69 @@ Wave speed: {_waveSpeed}";
                 }
             }
 
+        }
+
+        protected override void Update(GameTime gameTime)
+        {
+            var keyboard = Keyboard.GetState();
+
+            if(_state == GameState.Intro)
+            {
+                if(keyboard.IsKeyUp(Keys.Enter) && _lastKeyboard.IsKeyDown(Keys.Enter))
+                {
+                    StartGame();
+                }
+            }
+            else CycleBackground(gameTime);
+
+            if(_state == GameState.InGame)
+            {
+                UpdateWave(gameTime);
+                SpawnEnemyBullets(gameTime);
+                UpdatePenguin(gameTime, keyboard);
+                UpdateVictorTrans(gameTime);
+                RemoveOffscreenVictors(gameTime);
+                UpdateBullets(gameTime);
+                SpawnPlayerBullets(gameTime, keyboard);
+                UpdateInvincibilityState(gameTime);
+            }
+
+            _lastKeyboard = keyboard;
             base.Update(gameTime);
         }
 
-        protected override void Draw(GameTime gameTime)
+        private void DrawBackground(GameTime gameTime)
         {
-            GraphicsDevice.Clear(Color.CornflowerBlue);
-
-            _batch.Begin();
-
-            if(_currentBG != null)
+            if (_currentBG != null)
             {
                 _batch.Draw(_currentBG, Bounds, Color.Gray);
             }
 
-            if(_newBG != null)
+            if (_newBG != null)
             {
                 _batch.Draw(_newBG, Bounds, Color.Gray * _bgFade);
             }
 
+        }
+
+        private void DrawPlayer(GameTime gameTime)
+        {
             bool renderPlayer = (_invincibilityTime > 0) ? _invincibleRenderPlayer : true;
             if (renderPlayer)
             {
                 _batch.Draw(_penguin, PenguinBounds, Color.White);
             }
 
+        }
+
+        private void DrawBulletsAndVictors(GameTime gameTime)
+        {
             foreach (var bullet in _bullets) bullet.Draw(gameTime, _batch);
             foreach (var victor in _victors) victor.Draw(gameTime, _batch);
+        }
 
+        private void DrawInGameHud(GameTime gameTime)
+        {
             var scoreText = $"SCORE: {_score}";
 
             _batch.DrawString(_uiMedium, scoreText, new Vector2(27, 27), Color.Black);
@@ -417,9 +486,62 @@ Wave speed: {_waveSpeed}";
 
 #endif
 
+        }
+
+        protected override void Draw(GameTime gameTime)
+        {
+            GraphicsDevice.Clear(Color.CornflowerBlue);
+
+            _batch.Begin();
+
+            DrawBackground(gameTime);
+
+            if (_state == GameState.Intro)
+            {
+                var header = "Go, Go, Philip Adams!";
+                var introText = "Victor Tran is at it again - he has found a genius way to clone himself and create a race of evil blue happy face minions, and they're being sent after you! What will you do?\r\n\r\nYou are the coveted OSFirstTimer penguin, and your goal is to throw ice balls at the incoming happy face minions.  Every minion hit gives you 100 points, but if a minion reaches the edge of the screen, you lose points.  If you are hit by a minion or his bullets, you have a kernel panic and lose a life.  If you run out of lives, the game is over.";
+                var prompt = "Press ENTER to play!";
+
+                var headerMeasure = _uiLarge.MeasureString(header);
+                var headerPos = new Vector2((Bounds.Width - headerMeasure.X) / 2, 125);
+
+                _batch.DrawString(_uiLarge, header, headerPos + new Vector2(4, 4), Color.Black);
+                _batch.DrawString(_uiLarge, header, headerPos, Color.White);
+
+                float maxWidth = Bounds.Width / 3;
+
+                var introMeasure = _uiSmall.MeasureString(introText, maxWidth);
+
+                var introTextPos = new Vector2((Bounds.Width - introMeasure.X) / 2, headerPos.Y + headerMeasure.Y + 20);
+
+                _batch.DrawColoredString(_uiSmall, introText, introTextPos, maxWidth);
+
+                var promptMeasure = _uiMedium.MeasureString(prompt);
+
+                var promptPos = new Vector2((Bounds.Width - promptMeasure.X) / 2, (Bounds.Height - promptMeasure.Y) - 125);
+
+                _batch.DrawString(_uiMedium, prompt, promptPos + new Vector2(2, 2), Color.Black);
+                _batch.DrawString(_uiMedium, prompt, promptPos, Color.White);
+
+            }
+        
+            else if(_state == GameState.InGame)
+            {
+                DrawPlayer(gameTime);
+                DrawBulletsAndVictors(gameTime);
+                DrawInGameHud(gameTime);
+            }
+
             _batch.End();
 
             base.Draw(gameTime);
         }
+    }
+
+    public enum GameState
+    {
+        Intro,
+        InGame,
+        GameOver
     }
 }
