@@ -1,0 +1,3 @@
+Here's a little note about me and programming.  I really hate using the MonoGame Content Pipeline.  So all the assets for this game are raw.  Why? Because screw you, that's why.
+
+This music is by Kevin MacLeod, who I absolutely cannot thank enough for having dozens of gigabytes worth of his music free to download and use on his website, https://incompetech.com/.  Hopefully he won't mind me using it in this game.  If he does, well, then you won't have read this in the first place.

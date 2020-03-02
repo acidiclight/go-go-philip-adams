@@ -8,6 +8,7 @@ using Microsoft.Xna.Framework.Input;
 using SpriteFontPlus;
 
 using MultiColorText;
+using Microsoft.Xna.Framework.Audio;
 
 namespace GoGoPhilipAdamsRedux
 {
@@ -68,6 +69,14 @@ namespace GoGoPhilipAdamsRedux
         private const float WAVE_SPEED_INCREASE = 0.015f;
         private const float MAX_WAVE_SPEED = 0.25f;
         private GameState _state = GameState.Intro;
+        private SoundEffect _playerShoot = null;
+        private SoundEffect _enemyShoot = null;
+        private SoundEffect _playerDie = null;
+        private SoundEffect _enemyDie = null;
+        private SoundEffect _gameOverSound = null;
+        private SoundEffectInstance _hustler = null;
+        private SoundEffectInstance _activeBgm = null;
+        private SoundEffectInstance _wallpaper = null;
 
 #if DEBUG
         private string GetDebugText()
@@ -134,6 +143,14 @@ Wave speed: {_waveSpeed}";
             }
         }
 
+        private SoundEffect LoadSound(string path)
+        {
+            using(var stream = File.OpenRead(path))
+            {
+                return SoundEffect.FromStream(stream);
+            }
+        }
+
         private void StartGame()
         {
             _victors.Clear();
@@ -153,9 +170,17 @@ Wave speed: {_waveSpeed}";
 
         protected override void LoadContent()
         {
+            _hustler = LoadSound(Path.Combine("Songs", "Hustle.wav")).CreateInstance();
+            _wallpaper = LoadSound(Path.Combine("Songs", "Wallpaper.wav")).CreateInstance();
+
+            _enemyShoot = LoadSound(Path.Combine("PewPew", "vicr1pew3.wav"));
+            _playerShoot = LoadSound(Path.Combine("PewPew", "ospewtimer.wav"));
+
             _uiSmall = LoadFont("Contemporary-Regular.ttf", 16);
             _uiMedium = LoadFont("Contemporary-Regular.ttf", 24);
             _uiLarge = LoadFont("Contemporary-Regular.ttf", 33);
+
+            
 
             _batch = new SpriteBatch(GraphicsDevice);
 
@@ -190,6 +215,32 @@ Wave speed: {_waveSpeed}";
             }
 
             base.LoadContent();
+        }
+
+        private void UpdateMusic(GameTime gameTime)
+        {
+            if(_state == GameState.InGame)
+            {
+                if (_activeBgm != _wallpaper)
+                {
+                    _activeBgm?.Stop();
+                    _activeBgm = _wallpaper;
+                    _activeBgm.IsLooped = true;
+                    _activeBgm.Volume = 0.4f;
+                    _activeBgm.Play();
+                }
+            }
+            else
+            {
+                if(_activeBgm != _hustler)
+                {
+                    _activeBgm?.Stop();
+                    _activeBgm = _hustler;
+                    _activeBgm.IsLooped = true;
+                    _activeBgm.Volume = 0.4f;
+                    _activeBgm.Play();
+                }
+            }
         }
 
         private void UpdateWave(GameTime gameTime)
@@ -275,6 +326,7 @@ Wave speed: {_waveSpeed}";
                 {
                     var vicr123 = _victors[_rnd.Next(0, _victors.Count)];
                     _bullets.Add(new Bullet(_bulletTexture, false, BULLET_SPEED_ENEMY, vicr123.Location.X, vicr123.Location.Y));
+                    _enemyShoot.Play();
                 }
             }
 
@@ -379,6 +431,7 @@ Wave speed: {_waveSpeed}";
         {
             if (keyboard.IsKeyDown(Keys.Space) && !_lastKeyboard.IsKeyDown(Keys.Space))
             {
+                _playerShoot.Play();
                 _bullets.Add(new Bullet(_bulletTexture, true, BULLET_SPEED_PLAYER, _penguinX, _penguinY));
             }
 
@@ -405,6 +458,7 @@ Wave speed: {_waveSpeed}";
 
         protected override void Update(GameTime gameTime)
         {
+            UpdateMusic(gameTime);
             CycleBackground(gameTime);
 
             var keyboard = Keyboard.GetState();
