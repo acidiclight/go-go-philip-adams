@@ -405,6 +405,8 @@ Wave speed: {_waveSpeed}";
 
         protected override void Update(GameTime gameTime)
         {
+            CycleBackground(gameTime);
+
             var keyboard = Keyboard.GetState();
 
             if(_state == GameState.Intro)
@@ -414,9 +416,7 @@ Wave speed: {_waveSpeed}";
                     StartGame();
                 }
             }
-            else CycleBackground(gameTime);
-
-            if(_state == GameState.InGame)
+            else if(_state == GameState.InGame)
             {
                 UpdateWave(gameTime);
                 SpawnEnemyBullets(gameTime);
@@ -426,6 +426,17 @@ Wave speed: {_waveSpeed}";
                 UpdateBullets(gameTime);
                 SpawnPlayerBullets(gameTime, keyboard);
                 UpdateInvincibilityState(gameTime);
+            }
+            else if(_state == GameState.GameOver)
+            {
+                if(keyboard.IsKeyUp(Keys.Enter) && _lastKeyboard.IsKeyDown(Keys.Enter))
+                {
+                    Exit();
+                }
+                else if(keyboard.IsKeyUp(Keys.R) && _lastKeyboard.IsKeyDown(Keys.R))
+                {
+                    StartGame();
+                }
             }
 
             _lastKeyboard = keyboard;
@@ -488,6 +499,72 @@ Wave speed: {_waveSpeed}";
 
         }
 
+        private void DrawIntro(GameTime gameTime)
+        {
+            var header = "Go, Go, Philip Adams!";
+            var introText = "Victor Tran is at it again - he has found a genius way to clone himself and create a race of evil blue happy face minions, and they're being sent after you! What will you do?\r\n\r\nYou are the coveted OSFirstTimer penguin, and your goal is to throw ice balls at the incoming happy face minions.  Every minion hit gives you 100 points, but if a minion reaches the edge of the screen, you lose points.  If you are hit by a minion or his bullets, you have a kernel panic and lose a life.  If you run out of lives, the game is over.";
+            var prompt = "Press ENTER to play!";
+
+            var headerMeasure = _uiLarge.MeasureString(header);
+            var headerPos = new Vector2((Bounds.Width - headerMeasure.X) / 2, 125);
+
+            _batch.DrawString(_uiLarge, header, headerPos + new Vector2(4, 4), Color.Black);
+            _batch.DrawString(_uiLarge, header, headerPos, Color.White);
+
+            float maxWidth = Bounds.Width / 3;
+
+            var introMeasure = _uiSmall.MeasureString(introText, maxWidth);
+
+            var introTextPos = new Vector2((Bounds.Width - introMeasure.X) / 2, headerPos.Y + headerMeasure.Y + 20);
+
+            _batch.DrawColoredString(_uiSmall, introText, introTextPos, maxWidth);
+
+            var promptMeasure = _uiMedium.MeasureString(prompt);
+
+            var promptPos = new Vector2((Bounds.Width - promptMeasure.X) / 2, (Bounds.Height - promptMeasure.Y) - 125);
+
+            _batch.DrawString(_uiMedium, prompt, promptPos + new Vector2(2, 2), Color.Black);
+            _batch.DrawString(_uiMedium, prompt, promptPos, Color.White);
+
+        }
+
+        private void DrawGameOver(GameTime gameTime)
+        {
+            var gameOverText = "Game over!";
+            var gameOverStats = "Final score: " + _score;
+            var prompt = "Press ENTER to exit, R to restart";
+
+            var titleMeasure = _uiLarge.MeasureString(gameOverText);
+            var statsMeasure = _uiSmall.MeasureString(gameOverStats);
+            var promptMeasure = _uiMedium.MeasureString(prompt);
+
+            var titleSpace = 12;
+            var promptSpace = 7;
+
+            var totalHeight = titleMeasure.Y + titleSpace + statsMeasure.Y + promptSpace + promptMeasure.Y;
+
+            var startY = (Bounds.Height - totalHeight) / 2;
+
+            var titleX = (Bounds.Width - titleMeasure.X) / 2;
+            var statsX = (Bounds.Width - statsMeasure.X) / 2;
+            var promptX = (Bounds.Width - promptMeasure.X) / 2;
+
+            var statsY = startY + titleMeasure.Y + titleSpace;
+            var promptY = statsY + statsMeasure.Y + promptSpace;
+
+            _batch.DrawString(_uiLarge, gameOverText, new Vector2(titleX, startY) + new Vector2(2, 2), Color.Black);
+            _batch.DrawString(_uiLarge, gameOverText, new Vector2(titleX, startY), Color.Red);
+
+            _batch.DrawString(_uiSmall, gameOverStats, new Vector2(statsX, statsY) + new Vector2(2, 2), Color.Black);
+            _batch.DrawString(_uiSmall, gameOverStats, new Vector2(statsX, statsY), Color.White);
+
+            _batch.DrawString(_uiMedium, prompt, new Vector2(promptX, promptY) + new Vector2(2, 2), Color.Black);
+            _batch.DrawString(_uiMedium, prompt, new Vector2(promptX, promptY), Color.White);
+
+
+
+        }
+
         protected override void Draw(GameTime gameTime)
         {
             GraphicsDevice.Clear(Color.CornflowerBlue);
@@ -498,38 +575,17 @@ Wave speed: {_waveSpeed}";
 
             if (_state == GameState.Intro)
             {
-                var header = "Go, Go, Philip Adams!";
-                var introText = "Victor Tran is at it again - he has found a genius way to clone himself and create a race of evil blue happy face minions, and they're being sent after you! What will you do?\r\n\r\nYou are the coveted OSFirstTimer penguin, and your goal is to throw ice balls at the incoming happy face minions.  Every minion hit gives you 100 points, but if a minion reaches the edge of the screen, you lose points.  If you are hit by a minion or his bullets, you have a kernel panic and lose a life.  If you run out of lives, the game is over.";
-                var prompt = "Press ENTER to play!";
-
-                var headerMeasure = _uiLarge.MeasureString(header);
-                var headerPos = new Vector2((Bounds.Width - headerMeasure.X) / 2, 125);
-
-                _batch.DrawString(_uiLarge, header, headerPos + new Vector2(4, 4), Color.Black);
-                _batch.DrawString(_uiLarge, header, headerPos, Color.White);
-
-                float maxWidth = Bounds.Width / 3;
-
-                var introMeasure = _uiSmall.MeasureString(introText, maxWidth);
-
-                var introTextPos = new Vector2((Bounds.Width - introMeasure.X) / 2, headerPos.Y + headerMeasure.Y + 20);
-
-                _batch.DrawColoredString(_uiSmall, introText, introTextPos, maxWidth);
-
-                var promptMeasure = _uiMedium.MeasureString(prompt);
-
-                var promptPos = new Vector2((Bounds.Width - promptMeasure.X) / 2, (Bounds.Height - promptMeasure.Y) - 125);
-
-                _batch.DrawString(_uiMedium, prompt, promptPos + new Vector2(2, 2), Color.Black);
-                _batch.DrawString(_uiMedium, prompt, promptPos, Color.White);
-
-            }
-        
+                DrawIntro(gameTime);
+            }        
             else if(_state == GameState.InGame)
             {
                 DrawPlayer(gameTime);
                 DrawBulletsAndVictors(gameTime);
                 DrawInGameHud(gameTime);
+            }
+            else if(_state == GameState.GameOver)
+            {
+                DrawGameOver(gameTime);
             }
 
             _batch.End();
